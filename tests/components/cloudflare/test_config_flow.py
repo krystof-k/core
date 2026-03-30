@@ -170,3 +170,40 @@ async def test_reauth_flow(hass: HomeAssistant, cfupdate_flow: MagicMock) -> Non
     assert entry.data[CONF_RECORDS] == ENTRY_CONFIG[CONF_RECORDS]
 
     assert len(mock_setup_entry.mock_calls) == 1
+
+
+async def test_user_form_with_ipv6_records(
+    hass: HomeAssistant, cfupdate_flow: MagicMock
+) -> None:
+    """Test config flow shows both A and AAAA records."""
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={CONF_SOURCE: SOURCE_USER}
+    )
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        USER_INPUT,
+    )
+    await hass.async_block_till_done()
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        USER_INPUT_ZONE,
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "records"
+
+    # Select both A and AAAA records
+    with patch_async_setup_entry() as mock_setup_entry:
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_RECORDS: ["A:ha.mock.com", "AAAA:ha.mock.com"]},
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_RECORDS] == ["A:ha.mock.com", "AAAA:ha.mock.com"]
+    assert len(mock_setup_entry.mock_calls) == 1

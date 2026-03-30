@@ -16,8 +16,8 @@ from homeassistant.components.cloudflare.const import (
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import HomeAssistant
 
-from . import ENTRY_CONFIG, init_integration
-from .conftest import LOCATION_PATCH_TARGET
+from . import ENTRY_CONFIG, ENTRY_CONFIG_DUAL_STACK, ENTRY_CONFIG_IPV6, init_integration
+from .conftest import LOCATION_PATCH_TARGET, MOCK_LOCATION_IPV4
 
 from tests.common import MockConfigEntry, async_fire_time_changed
 
@@ -140,7 +140,7 @@ async def test_integration_services_with_nonexisting_record(
     instance = cfupdate.return_value
 
     entry = await init_integration(
-        hass, data={**ENTRY_CONFIG, CONF_RECORDS: ["nonexisting.example.com"]}
+        hass, data={**ENTRY_CONFIG, CONF_RECORDS: ["A:nonexisting.example.com"]}
     )
     assert entry.state is ConfigEntryState.LOADED
 
@@ -189,3 +189,96 @@ async def test_integration_update_interval(
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(instance.list_dns_records.mock_calls) == 4
     assert len(instance.update_dns_record.mock_calls) == 4
+
+
+@pytest.mark.usefixtures("location_info_ipv6")
+async def test_integration_ipv6_records(
+    hass: HomeAssistant, cfupdate: MagicMock
+) -> None:
+    """Test integration with IPv6 AAAA records."""
+    instance = cfupdate.return_value
+
+    entry = await init_integration(hass, data=ENTRY_CONFIG_IPV6)
+    assert entry.state is ConfigEntryState.LOADED
+
+    assert len(instance.update_dns_record.mock_calls) == 2
+    # Verify AAAA records were updated with IPv6 address
+    for call in instance.update_dns_record.mock_calls:
+        assert call.kwargs["record_type"] == "AAAA"
+        assert call.kwargs["record_content"] == "2001:db8::1"
+
+
+@pytest.mark.usefixtures("location_info_dual_stack")
+async def test_integration_dual_stack_records(
+    hass: HomeAssistant, cfupdate: MagicMock
+) -> None:
+    """Test integration with both A and AAAA records (dual-stack)."""
+    instance = cfupdate.return_value
+
+    entry = await init_integration(hass, data=ENTRY_CONFIG_DUAL_STACK)
+    assert entry.state is ConfigEntryState.LOADED
+
+    # 2 A records + 2 AAAA records = 4 updates
+    assert len(instance.update_dns_record.mock_calls) == 4
+
+    a_calls = [
+        c
+        for c in instance.update_dns_record.mock_calls
+        if c.kwargs["record_type"] == "A"
+    ]
+    aaaa_calls = [
+        c
+        for c in instance.update_dns_record.mock_calls
+        if c.kwargs["record_type"] == "AAAA"
+    ]
+    assert len(a_calls) == 2
+    assert len(aaaa_calls) == 2
+    for call in a_calls:
+        assert call.kwargs["record_content"] == "0.0.0.0"
+    for call in aaaa_calls:
+        assert call.kwargs["record_content"] == "2001:db8::1"
+
+
+@pytest.mark.usefixtures("location_info_dual_stack")
+async def test_integration_dual_stack_ipv6_failure(
+    hass: HomeAssistant, cfupdate: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test dual-stack where IPv6 detection fails."""
+    call_count = 0
+
+    def _side_effect(*args: object, **kwargs: object) -> object:
+        nonlocal call_count
+        call_count += 1
+        # IPv4 succeeds, IPv6 fails
+        if call_count % 2 == 1:
+            return MOCK_LOCATION_IPV4
+        return None
+
+    with patch(LOCATION_PATCH_TARGET, side_effect=_side_effect):
+        entry = await init_integration(hass, data=ENTRY_CONFIG_DUAL_STACK)
+        assert entry.state is ConfigEntryState.LOADED
+
+    assert "Could not get external IPv6 address" in caplog.text
+
+
+async def test_migrate_entry_v1_to_v2(hass: HomeAssistant, cfupdate: MagicMock) -> None:
+    """Test migration of config entry from version 1 to version 2."""
+    v1_config = {
+        "api_token": "mock-api-token",
+        "zone": "mock.com",
+        "records": ["ha.mock.com", "homeassistant.mock.com"],
+    }
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=v1_config,
+        version=1,
+    )
+    entry.add_to_hass(hass)
+
+    with patch(LOCATION_PATCH_TARGET, return_value=None):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    # Verify migration happened
+    assert entry.version == 2
+    assert entry.data[CONF_RECORDS] == ["A:ha.mock.com", "A:homeassistant.mock.com"]

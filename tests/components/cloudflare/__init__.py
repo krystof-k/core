@@ -17,7 +17,24 @@ from tests.common import MockConfigEntry
 ENTRY_CONFIG = {
     CONF_API_TOKEN: "mock-api-token",
     CONF_ZONE: "mock.com",
-    CONF_RECORDS: ["ha.mock.com", "homeassistant.mock.com"],
+    CONF_RECORDS: ["A:ha.mock.com", "A:homeassistant.mock.com"],
+}
+
+ENTRY_CONFIG_IPV6 = {
+    CONF_API_TOKEN: "mock-api-token",
+    CONF_ZONE: "mock.com",
+    CONF_RECORDS: ["AAAA:ha.mock.com", "AAAA:homeassistant.mock.com"],
+}
+
+ENTRY_CONFIG_DUAL_STACK = {
+    CONF_API_TOKEN: "mock-api-token",
+    CONF_ZONE: "mock.com",
+    CONF_RECORDS: [
+        "A:ha.mock.com",
+        "A:homeassistant.mock.com",
+        "AAAA:ha.mock.com",
+        "AAAA:homeassistant.mock.com",
+    ],
 }
 
 ENTRY_OPTIONS = {}
@@ -28,10 +45,10 @@ USER_INPUT = {
 
 USER_INPUT_ZONE = {CONF_ZONE: "mock.com"}
 
-USER_INPUT_RECORDS = {CONF_RECORDS: ["ha.mock.com", "homeassistant.mock.com"]}
+USER_INPUT_RECORDS = {CONF_RECORDS: ["A:ha.mock.com", "A:homeassistant.mock.com"]}
 
 MOCK_ZONE: pycfdns.ZoneModel = {"name": "mock.com", "id": "mock-zone-id"}
-MOCK_ZONE_RECORDS: list[pycfdns.RecordModel] = [
+MOCK_ZONE_A_RECORDS: list[pycfdns.RecordModel] = [
     {
         "id": "zone-record-id",
         "type": "A",
@@ -52,6 +69,22 @@ MOCK_ZONE_RECORDS: list[pycfdns.RecordModel] = [
         "name": "mock.com",
         "proxied": True,
         "content": "127.0.0.1",
+    },
+]
+MOCK_ZONE_AAAA_RECORDS: list[pycfdns.RecordModel] = [
+    {
+        "id": "zone-record-id-aaaa",
+        "type": "AAAA",
+        "name": "ha.mock.com",
+        "proxied": True,
+        "content": "::1",
+    },
+    {
+        "id": "zone-record-id-aaaa-2",
+        "type": "AAAA",
+        "name": "homeassistant.mock.com",
+        "proxied": True,
+        "content": "::1",
     },
 ]
 
@@ -80,12 +113,20 @@ async def init_integration(
     return entry
 
 
+def _mock_list_dns_records(**kwargs: Any) -> list[pycfdns.RecordModel]:
+    """Return mock DNS records based on the requested type."""
+    record_type = kwargs.get("type", "A")
+    if record_type == "AAAA":
+        return MOCK_ZONE_AAAA_RECORDS
+    return MOCK_ZONE_A_RECORDS
+
+
 def get_mock_client() -> Mock:
     """Return of Mock of pycfdns.Client."""
     client = Mock()
 
     client.list_zones = AsyncMock(return_value=[MOCK_ZONE])
-    client.list_dns_records = AsyncMock(return_value=MOCK_ZONE_RECORDS)
+    client.list_dns_records = AsyncMock(side_effect=_mock_list_dns_records)
     client.update_dns_record = AsyncMock(return_value=None)
 
     return client

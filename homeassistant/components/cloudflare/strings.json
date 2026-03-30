@@ -20,6 +20,7 @@
         "data": {
           "records": "Records"
         },
+        "description": "Select A (IPv4) and/or AAAA (IPv6) records to keep updated with your public IP addresses.",
         "title": "Choose the records to update"
       },
       "user": {

@@ -43,7 +43,10 @@ def _records_schema(records: list[pycfdns.RecordModel] | None = None) -> vol.Sch
     records_dict = {}
 
     if records:
-        records_dict = {name["name"]: name["name"] for name in records}
+        records_dict = {
+            f"{record['type']}:{record['name']}": f"{record['name']} ({record['type']})"
+            for record in records
+        }
 
     return vol.Schema({vol.Required(CONF_RECORDS): cv.multi_select(records_dict)})
 
@@ -66,7 +69,9 @@ async def _validate_input(
 
     zones = await client.list_zones()
     if zone and (zone_id := get_zone_id(zone, zones)) is not None:
-        records = await client.list_dns_records(zone_id=zone_id, type="A")
+        records_a = await client.list_dns_records(zone_id=zone_id, type="A")
+        records_aaaa = await client.list_dns_records(zone_id=zone_id, type="AAAA")
+        records = records_a + records_aaaa
 
     return {"zones": zones, "records": records}
 
@@ -74,7 +79,7 @@ async def _validate_input(
 class CloudflareConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Cloudflare."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the Cloudflare config flow."""
