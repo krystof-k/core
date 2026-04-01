@@ -69,8 +69,9 @@ class CloudflareCoordinator(DataUpdateCoordinator[None]):
             target_records: list[str] = self.config_entry.data[CONF_RECORDS]
 
             # Determine which record types are configured
+            # Unprefixed records are A (IPv4), "AAAA:" prefix means AAAA (IPv6)
             a_targets = {
-                r.removeprefix("A:") for r in target_records if r.startswith("A:")
+                r for r in target_records if not r.startswith("AAAA:")
             }
             aaaa_targets = {
                 r.removeprefix("AAAA:") for r in target_records if r.startswith("AAAA:")

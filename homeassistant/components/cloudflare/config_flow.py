@@ -44,7 +44,11 @@ def _records_schema(records: list[pycfdns.RecordModel] | None = None) -> vol.Sch
 
     if records:
         records_dict = {
-            f"{record['type']}:{record['name']}": f"{record['name']} ({record['type']})"
+            (
+                f"AAAA:{record['name']}"
+                if record["type"] == "AAAA"
+                else record["name"]
+            ): f"{record['name']} ({record['type']})"
             for record in records
         }
 
@@ -79,7 +83,7 @@ async def _validate_input(
 class CloudflareConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Cloudflare."""
 
-    VERSION = 2
+    VERSION = 1
 
     def __init__(self) -> None:
         """Initialize the Cloudflare config flow."""

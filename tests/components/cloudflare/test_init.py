@@ -140,7 +140,7 @@ async def test_integration_services_with_nonexisting_record(
     instance = cfupdate.return_value
 
     entry = await init_integration(
-        hass, data={**ENTRY_CONFIG, CONF_RECORDS: ["A:nonexisting.example.com"]}
+        hass, data={**ENTRY_CONFIG, CONF_RECORDS: ["nonexisting.example.com"]}
     )
     assert entry.state is ConfigEntryState.LOADED
 
@@ -261,24 +261,3 @@ async def test_integration_dual_stack_ipv6_failure(
     assert "Could not get external IPv6 address" in caplog.text
 
 
-async def test_migrate_entry_v1_to_v2(hass: HomeAssistant, cfupdate: MagicMock) -> None:
-    """Test migration of config entry from version 1 to version 2."""
-    v1_config = {
-        "api_token": "mock-api-token",
-        "zone": "mock.com",
-        "records": ["ha.mock.com", "homeassistant.mock.com"],
-    }
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=v1_config,
-        version=1,
-    )
-    entry.add_to_hass(hass)
-
-    with patch(LOCATION_PATCH_TARGET, return_value=None):
-        await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-
-    # Verify migration happened
-    assert entry.version == 2
-    assert entry.data[CONF_RECORDS] == ["A:ha.mock.com", "A:homeassistant.mock.com"]

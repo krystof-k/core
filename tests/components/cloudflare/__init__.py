@@ -17,7 +17,7 @@ from tests.common import MockConfigEntry
 ENTRY_CONFIG = {
     CONF_API_TOKEN: "mock-api-token",
     CONF_ZONE: "mock.com",
-    CONF_RECORDS: ["A:ha.mock.com", "A:homeassistant.mock.com"],
+    CONF_RECORDS: ["ha.mock.com", "homeassistant.mock.com"],
 }
 
 ENTRY_CONFIG_IPV6 = {
@@ -30,8 +30,8 @@ ENTRY_CONFIG_DUAL_STACK = {
     CONF_API_TOKEN: "mock-api-token",
     CONF_ZONE: "mock.com",
     CONF_RECORDS: [
-        "A:ha.mock.com",
-        "A:homeassistant.mock.com",
+        "ha.mock.com",
+        "homeassistant.mock.com",
         "AAAA:ha.mock.com",
         "AAAA:homeassistant.mock.com",
     ],
@@ -45,7 +45,7 @@ USER_INPUT = {
 
 USER_INPUT_ZONE = {CONF_ZONE: "mock.com"}
 
-USER_INPUT_RECORDS = {CONF_RECORDS: ["A:ha.mock.com", "A:homeassistant.mock.com"]}
+USER_INPUT_RECORDS = {CONF_RECORDS: ["ha.mock.com", "homeassistant.mock.com"]}
 
 MOCK_ZONE: pycfdns.ZoneModel = {"name": "mock.com", "id": "mock-zone-id"}
 MOCK_ZONE_A_RECORDS: list[pycfdns.RecordModel] = [

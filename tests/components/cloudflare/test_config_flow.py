@@ -200,10 +200,10 @@ async def test_user_form_with_ipv6_records(
     with patch_async_setup_entry() as mock_setup_entry:
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            {CONF_RECORDS: ["A:ha.mock.com", "AAAA:ha.mock.com"]},
+            {CONF_RECORDS: ["ha.mock.com", "AAAA:ha.mock.com"]},
         )
         await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"][CONF_RECORDS] == ["A:ha.mock.com", "AAAA:ha.mock.com"]
+    assert result["data"][CONF_RECORDS] == ["ha.mock.com", "AAAA:ha.mock.com"]
     assert len(mock_setup_entry.mock_calls) == 1
